@@ -56,29 +56,36 @@ func getData(s Stonker, coin Coin) CoinData {
 	return cd
 }
 
-func (s Stonker) GetGems() ([]CoinData, error) {
+func (s Stonker) GetGems(top int) ([]CoinData, error) {
 	list, err := s.GetCoinList()
 	if err != nil {
 		return nil, err
 	}
-	coins := []CoinData{}
+	fmt.Printf("found %d potential coins.\n", len(list))
 
+	coins := []CoinData{}
 	for _, c := range list {
 		cd := getData(s, c)
 		coins = append(coins, cd)
 		time.Sleep(300 * time.Millisecond)
 	}
 
-	coins = filter(coins,
-		func(cd CoinData) bool { return cd.DeveloperScore == 0 },
-	)
-	fmt.Printf("found %d gems out of %d coins.\n", len(coins), len(list))
+	coins = rankAndFilter(coins)
+	fmt.Printf("found %d potential gems.\n", len(coins))
 
-	rank(coins)
-	for i, c := range coins[:10] {
+	fmt.Printf("Top %d gems:", top)
+	for i, c := range coins[:top] {
 		fmt.Printf("#%d: %+v\n", i+1, c)
 	}
 	return coins, err
+}
+
+func rankAndFilter(coins []CoinData) []CoinData {
+	coins = filter(coins,
+		func(cd CoinData) bool { return cd.DeveloperScore == 0 },
+	)
+	rank(coins)
+	return coins
 }
 
 func (s Stonker) GetCoinList() ([]Coin, error) {

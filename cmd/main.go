@@ -6,5 +6,5 @@ import (
 
 func main() {
 	s := stonks.NewStonker()
-	s.GetGems()
+	s.GetGems(3)
 }
