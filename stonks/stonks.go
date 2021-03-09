@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	cg "github.com/superoo7/go-gecko/v3"
@@ -28,8 +29,10 @@ type Coin struct {
 
 type CoinData struct {
 	Coin
-	MarketCapRank  uint16
-	DeveloperScore float32
+	MarketCapRank       uint16
+	DeveloperScore      float32
+	PublicInterestScore float32
+	ImageURL            string
 }
 
 type Stonker struct {
@@ -47,12 +50,14 @@ func NewStonker() *Stonker {
 	}
 }
 
-func getData(s Stonker, coin Coin) CoinData {
+func getData(s Stonker, coins []CoinData, coin Coin, idx int, wg *sync.WaitGroup) CoinData {
 	cd, err := s.GetCoinDataFromID(coin.ID)
+	wg.Done()
 	if err != nil {
-		fmt.Printf("  - ERROR fetching %+s: %s\n", coin.ID, err)
-		return CoinData{}
+		//fmt.Printf("  - ERROR fetching %+s: %s\n", coin.ID, err)
+		//return CoinData{}
 	}
+	coins[idx] = cd
 	return cd
 }
 
@@ -63,17 +68,20 @@ func (s Stonker) GetGems(top int) ([]CoinData, error) {
 	}
 	fmt.Printf("found %d potential coins.\n", len(list))
 
-	coins := []CoinData{}
-	for _, c := range list {
-		cd := getData(s, c)
-		coins = append(coins, cd)
-		time.Sleep(300 * time.Millisecond)
+	var wg sync.WaitGroup
+	coins := make([]CoinData, len(list))
+	fmt.Println(" - requesting coin data...")
+	for i, c := range list {
+		wg.Add(1)
+		go getData(s, coins, c, i, &wg)
 	}
+	fmt.Println(" - waiting for coin data...")
+	wg.Wait()
 
 	coins = rankAndFilter(coins)
 	fmt.Printf("found %d potential gems.\n", len(coins))
 
-	fmt.Printf("Top %d gems:", top)
+	fmt.Printf("Top %d gems:\n", top)
 	for i, c := range coins[:top] {
 		fmt.Printf("#%d: %+v\n", i+1, c)
 	}
@@ -123,7 +131,9 @@ func CoinDataFromCoinsID(cid *types.CoinsID) CoinData {
 			Name:   cid.Name,
 			Symbol: cid.Symbol,
 		},
-		MarketCapRank:  cid.MarketCapRank,
-		DeveloperScore: cid.DeveloperScore,
+		MarketCapRank:       cid.MarketCapRank,
+		DeveloperScore:      cid.DeveloperScore,
+		ImageURL:            cid.Image.Large,
+		PublicInterestScore: cid.PublicInterestScore,
 	}
 }
