@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"net/http"
 	"os"
 
 	"github.com/scharissis/crypto-gem-finder/stonks"
@@ -12,8 +10,10 @@ import (
 func main() {
 	s := stonks.NewStonker()
 	generateHTML(s, "./web/index.html")
-	fmt.Printf("serving website from '/web' @ localhost:3000...")
-	log.Fatal(http.ListenAndServe(":3000", http.FileServer(http.Dir("./web"))))
+
+	// For local testing
+	// fmt.Printf("serving website from '/web' @ localhost:3000...")
+	// log.Fatal(http.ListenAndServe(":3000", http.FileServer(http.Dir("./web"))))
 }
 
 func generateHTML(s *stonks.Stonker, path string) error {
