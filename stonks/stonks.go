@@ -2,9 +2,12 @@ package stonks
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
+	"text/template"
 	"time"
 
 	cg "github.com/superoo7/go-gecko/v3"
@@ -19,6 +22,8 @@ type Stonk interface {
 	GetCoinList() ([]Coin, error)
 	GetPrice(id string) float32
 	GetCoinDataFromID(id string) (CoinData, error)
+
+	ToHTML(w io.Writer, data interface{}) error
 }
 
 type Coin struct {
@@ -33,11 +38,21 @@ type CoinData struct {
 	DeveloperScore      float32
 	PublicInterestScore float32
 	ImageURL            string
+	Description         string
+	CurrentPrice        float64
 }
 
 type Stonker struct {
 	client          *cg.Client
 	defaultCurrency string
+	web             WebData
+}
+
+type WebData struct {
+	Template  string
+	Path      string
+	Gems      []CoinData
+	Timestamp string
 }
 
 func NewStonker() *Stonker {
@@ -47,6 +62,12 @@ func NewStonker() *Stonker {
 	return &Stonker{
 		client:          cg.NewClient(httpClient),
 		defaultCurrency: "aud",
+		web: WebData{
+			Template:  indexTemplate,
+			Path:      "./web/index.html",
+			Gems:      []CoinData{},
+			Timestamp: time.Now().Format(time.RFC850),
+		},
 	}
 }
 
@@ -78,11 +99,11 @@ func (s Stonker) GetGems(top int) ([]CoinData, error) {
 	fmt.Println(" - waiting for coin data...")
 	wg.Wait()
 
-	coins = rankAndFilter(coins)
+	coins = rankAndFilter(coins)[:top]
 	fmt.Printf("found %d potential gems.\n", len(coins))
 
 	fmt.Printf("Top %d gems:\n", top)
-	for i, c := range coins[:top] {
+	for i, c := range coins {
 		fmt.Printf("#%d: %+v\n", i+1, c)
 	}
 	return coins, err
@@ -121,10 +142,19 @@ func (s Stonker) GetCoinDataFromID(id string) (CoinData, error) {
 	if err != nil {
 		return CoinData{}, err
 	}
-	return CoinDataFromCoinsID(coin), err
+	return CoinDataFromCoinsID(coin, s.defaultCurrency), err
 }
 
-func CoinDataFromCoinsID(cid *types.CoinsID) CoinData {
+func CoinDataFromCoinsID(cid *types.CoinsID, currency string) CoinData {
+	description := "no description found"
+	if d, found := cid.Description["en"]; found {
+		d = strings.Split(d, `.`)[0]
+		description = d
+	}
+	currPrice := 0.0
+	if p, found := cid.MarketData.CurrentPrice[currency]; found {
+		currPrice = p
+	}
 	return CoinData{
 		Coin: Coin{
 			ID:     cid.ID,
@@ -135,5 +165,24 @@ func CoinDataFromCoinsID(cid *types.CoinsID) CoinData {
 		DeveloperScore:      cid.DeveloperScore,
 		ImageURL:            cid.Image.Large,
 		PublicInterestScore: cid.PublicInterestScore,
+		Description:         description,
+		CurrentPrice:        currPrice,
 	}
+}
+
+func (s Stonker) ToHTML(w io.Writer) error {
+	fmt.Printf("generating html...\n")
+	var err error = nil
+	s.web.Gems, err = s.GetGems(3)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf(" - with %d gems\n", len(s.web.Gems))
+	funcMap := template.FuncMap{
+		"GetCurrency": func() string { return s.defaultCurrency },
+		"ToUpper":     strings.ToUpper,
+	}
+	t := template.Must(template.New("html").Funcs(funcMap).Parse(s.web.Template))
+	return t.Execute(w, s.web)
 }
