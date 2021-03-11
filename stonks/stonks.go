@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"reflect"
 	"strings"
 	"sync"
 	"text/template"
@@ -12,6 +13,7 @@ import (
 
 	cg "github.com/superoo7/go-gecko/v3"
 	"github.com/superoo7/go-gecko/v3/types"
+	"go.uber.org/ratelimit"
 )
 
 type Stonk interface {
@@ -44,6 +46,7 @@ type CoinData struct {
 
 type Stonker struct {
 	client          *cg.Client
+	ratelimiter     ratelimit.Limiter
 	defaultCurrency string
 	web             WebData
 }
@@ -57,10 +60,11 @@ type WebData struct {
 
 func NewStonker() *Stonker {
 	httpClient := &http.Client{
-		Timeout: time.Second * 10,
+		Timeout: 2 * time.Second * 60,
 	}
 	return &Stonker{
 		client:          cg.NewClient(httpClient),
+		ratelimiter:     ratelimit.New(1, ratelimit.Per(3*time.Second)), // 1 request per 3 seconds (0.3 rps)
 		defaultCurrency: "aud",
 		web: WebData{
 			Template:  indexTemplate,
@@ -72,11 +76,16 @@ func NewStonker() *Stonker {
 }
 
 func getData(s Stonker, coins []CoinData, coin Coin, idx int, wg *sync.WaitGroup) CoinData {
+	emptyCoinData := CoinData{}
+	coins[idx] = emptyCoinData // default/failure
+	if coin.ID == "" {
+		return emptyCoinData
+	}
 	cd, err := s.GetCoinDataFromID(coin.ID)
 	wg.Done()
 	if err != nil {
-		//fmt.Printf("  - ERROR fetching %+s: %s\n", coin.ID, err)
-		//return CoinData{}
+		log.Printf("  - ERROR fetching '%+v': %s\n", coin, err)
+		cd = emptyCoinData
 	}
 	coins[idx] = cd
 	return cd
@@ -98,9 +107,11 @@ func (s Stonker) GetGems(top int) ([]CoinData, error) {
 	}
 	fmt.Println(" - waiting for coin data...")
 	wg.Wait()
+	logSuccessRate(list, coins)
 
-	coins = rankAndFilter(coins)[:top]
+	coins = rankAndFilter(coins)
 	fmt.Printf("found %d potential gems.\n", len(coins))
+	coins = coins[:top]
 
 	fmt.Printf("Top %d gems:\n", top)
 	for i, c := range coins {
@@ -118,6 +129,7 @@ func rankAndFilter(coins []CoinData) []CoinData {
 }
 
 func (s Stonker) GetCoinList() ([]Coin, error) {
+	s.ratelimiter.Take() // rate limit
 	coinList, err := s.client.CoinsList()
 	if err != nil {
 		return nil, err
@@ -130,6 +142,7 @@ func (s Stonker) GetCoinList() ([]Coin, error) {
 }
 
 func (s Stonker) GetPrice(id string) float32 {
+	s.ratelimiter.Take() // rate limit
 	price, err := s.client.SimpleSinglePrice(id, s.defaultCurrency)
 	if err != nil {
 		log.Fatal(err)
@@ -138,6 +151,7 @@ func (s Stonker) GetPrice(id string) float32 {
 }
 
 func (s Stonker) GetCoinDataFromID(id string) (CoinData, error) {
+	s.ratelimiter.Take() // rate limit
 	coin, err := s.client.CoinsID(id, false, true, true, true, true, true)
 	if err != nil {
 		return CoinData{}, err
@@ -185,4 +199,16 @@ func (s Stonker) ToHTML(w io.Writer) error {
 	}
 	t := template.Must(template.New("html").Funcs(funcMap).Parse(s.web.Template))
 	return t.Execute(w, s.web)
+}
+
+func logSuccessRate(list []Coin, coins []CoinData) {
+	all := len(list)
+	success := 0
+	emptyCoinData := CoinData{}
+	for _, c := range coins {
+		if !reflect.DeepEqual(c, emptyCoinData) {
+			success++
+		}
+	}
+	log.Printf("%d/%d (%.1f%%) coins successfully queried.\n", success, all, float32(success)/float32(all)*100.0)
 }
