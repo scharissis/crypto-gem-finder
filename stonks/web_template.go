@@ -4,10 +4,19 @@ var indexTemplate string = `
 <!doctype html>
 <html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
-  <title>Crypto Moonshot Gem Finder</title>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
+	<title>Crypto Moonshot Gem Finder</title>
+
+	<!-- Global site tag (gtag.js) - Google Analytics -->
+	<script async src="https://www.googletagmanager.com/gtag/js?id=G-MMS4JS45QT"></script>
+	<script>
+		window.dataLayer = window.dataLayer || [];
+		function gtag(){dataLayer.push(arguments);}
+		gtag('js', new Date());
+		gtag('config', 'G-MMS4JS45QT');
+	</script>
 </head>
 <body class="font-mono align-middle bg-indigo-900 relative overflow-hidden h-screen bg-cover">
 	<img src="/images/bg-unsplash.jpg" class="absolute h-full w-full object-cover"/>
