@@ -37,11 +37,19 @@ type Coin struct {
 type CoinData struct {
 	Coin
 	MarketCapRank       uint16
+	MarketCap           float64
 	DeveloperScore      float32
 	PublicInterestScore float32
+	CommunityScore      float32
 	ImageURL            string
 	Description         string
 	CurrentPrice        float64
+
+	MoonshotScore float32
+}
+
+func (cd *CoinData) score() {
+	cd.MoonshotScore = 2*cd.DeveloperScore + cd.PublicInterestScore + 100*float32(cd.MarketCapRank)
 }
 
 type Stonker struct {
@@ -122,9 +130,10 @@ func (s Stonker) GetGems(top int) ([]CoinData, error) {
 
 func rankAndFilter(coins []CoinData) []CoinData {
 	coins = filter(coins,
-		func(cd CoinData) bool { return cd.DeveloperScore == 0 },
+		badDeveloperScore,
+		topTenMarketCap,
 	)
-	rank(coins)
+	coins = rank(coins)
 	return coins
 }
 
@@ -169,19 +178,23 @@ func CoinDataFromCoinsID(cid *types.CoinsID, currency string) CoinData {
 	if p, found := cid.MarketData.CurrentPrice[currency]; found {
 		currPrice = p
 	}
-	return CoinData{
+	cd := CoinData{
 		Coin: Coin{
 			ID:     cid.ID,
 			Name:   cid.Name,
 			Symbol: cid.Symbol,
 		},
 		MarketCapRank:       cid.MarketCapRank,
+		MarketCap:           cid.MarketData.MarketCap[currency],
 		DeveloperScore:      cid.DeveloperScore,
-		ImageURL:            cid.Image.Large,
 		PublicInterestScore: cid.PublicInterestScore,
+		CommunityScore:      cid.CommunityScore,
+		ImageURL:            cid.Image.Large,
 		Description:         description,
 		CurrentPrice:        currPrice,
 	}
+	cd.score()
+	return cd
 }
 
 func (s Stonker) ToHTML(w io.Writer) error {
