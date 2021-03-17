@@ -72,7 +72,7 @@ func NewStonker() *Stonker {
 	}
 	return &Stonker{
 		client:          cg.NewClient(httpClient),
-		ratelimiter:     ratelimit.New(1, ratelimit.Per(3*time.Second)), // 1 request per 3 seconds (0.3 rps)
+		ratelimiter:     ratelimit.New(1, ratelimit.Per(2*time.Second)), // 1 request per 2 seconds (0.5 rps)
 		defaultCurrency: "aud",
 		web: WebData{
 			Template:  indexTemplate,
