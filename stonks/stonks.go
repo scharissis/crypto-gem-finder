@@ -68,7 +68,7 @@ type WebData struct {
 
 func NewStonker() *Stonker {
 	httpClient := &http.Client{
-		Timeout: 2 * time.Second * 60,
+		Timeout: time.Second * 90,
 	}
 	return &Stonker{
 		client:          cg.NewClient(httpClient),
