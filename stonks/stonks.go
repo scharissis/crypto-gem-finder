@@ -1,7 +1,6 @@
 package stonks
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -84,17 +83,15 @@ func NewStonker() *Stonker {
 }
 
 func getData(s Stonker, coins []CoinData, coin Coin, idx int, wg *sync.WaitGroup) CoinData {
-	emptyCoinData := CoinData{}
-	coins[idx] = emptyCoinData // default/failure
-	if coin.ID == "" {
-		return emptyCoinData
+	var cd CoinData = CoinData{}
+	var err error = nil
+	if coin.ID != "" {
+		cd, err = s.GetCoinDataFromID(coin.ID)
+		if err != nil {
+			log.Printf("  - ERROR fetching '%+v': %s\n", coin, err)
+		}
 	}
-	cd, err := s.GetCoinDataFromID(coin.ID)
 	wg.Done()
-	if err != nil {
-		log.Printf("  - ERROR fetching '%+v': %s\n", coin, err)
-		cd = emptyCoinData
-	}
 	coins[idx] = cd
 	return cd
 }
@@ -104,26 +101,26 @@ func (s Stonker) GetGems(top int) ([]CoinData, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("found %d potential coins.\n", len(list))
+	log.Printf("found %d potential coins.\n", len(list))
 
 	var wg sync.WaitGroup
 	coins := make([]CoinData, len(list))
-	fmt.Println(" - requesting coin data...")
+	log.Println(" - requesting coin data...")
 	for i, c := range list {
 		wg.Add(1)
 		go getData(s, coins, c, i, &wg)
 	}
-	fmt.Println(" - waiting for coin data...")
+	log.Println(" - waiting for coin data...")
 	wg.Wait()
 	logSuccessRate(list, coins)
 
 	coins = rankAndFilter(coins)
-	fmt.Printf("found %d potential gems.\n", len(coins))
+	log.Printf("found %d potential gems.\n", len(coins))
 	coins = coins[:top]
 
-	fmt.Printf("Top %d gems:\n", top)
+	log.Printf("Top %d gems:\n", top)
 	for i, c := range coins {
-		fmt.Printf("#%d: %+v\n", i+1, c)
+		log.Printf("#%d: %+v\n", i+1, c)
 	}
 	return coins, err
 }
@@ -198,14 +195,14 @@ func CoinDataFromCoinsID(cid *types.CoinsID, currency string) CoinData {
 }
 
 func (s Stonker) ToHTML(w io.Writer) error {
-	fmt.Printf("generating html...\n")
+	log.Printf("generating html...\n")
 	var err error = nil
 	s.web.Gems, err = s.GetGems(3)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf(" - with %d gems\n", len(s.web.Gems))
+	log.Printf(" - with %d gems\n", len(s.web.Gems))
 	funcMap := template.FuncMap{
 		"GetCurrency": func() string { return s.defaultCurrency },
 		"ToUpper":     strings.ToUpper,
