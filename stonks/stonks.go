@@ -3,6 +3,7 @@ package stonks
 import (
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"reflect"
 	"strings"
@@ -101,6 +102,9 @@ func (s Stonker) GetGems(top int) ([]CoinData, error) {
 	if err != nil {
 		return nil, err
 	}
+	// shuffle for fairness in case of failures
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(list), func(i, j int) { list[i], list[j] = list[j], list[i] })
 	log.Printf("found %d potential coins.\n", len(list))
 
 	var wg sync.WaitGroup
