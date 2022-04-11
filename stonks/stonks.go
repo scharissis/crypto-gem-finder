@@ -102,10 +102,15 @@ func (s Stonker) GetGems(top int) ([]CoinData, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	// shuffle for fairness in case of failures
 	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(list), func(i, j int) { list[i], list[j] = list[j], list[i] })
 	log.Printf("found %d potential coins.\n", len(list))
+
+	// TODO(scharissis): remove :)
+	// temporary hack to allow this to complete within 6hrs on Github Actions
+	list = list[:7000]
 
 	var wg sync.WaitGroup
 	coins := make([]CoinData, len(list))
