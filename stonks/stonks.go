@@ -110,7 +110,7 @@ func (s Stonker) GetGems(top int) ([]CoinData, error) {
 
 	// TODO(scharissis): remove :)
 	// temporary hack to allow this to complete within 6hrs on Github Actions
-	list = list[:7000]
+	list = list[:10000]
 
 	var wg sync.WaitGroup
 	coins := make([]CoinData, len(list))
