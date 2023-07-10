@@ -4,5 +4,5 @@ go 1.15
 
 require (
 	github.com/superoo7/go-gecko v1.0.0
-	go.uber.org/ratelimit v0.2.0
+	go.uber.org/ratelimit v0.3.0
 )
