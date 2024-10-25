@@ -16,11 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Set up Go 1.15
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v5
       with:
         go-version: ^1.15
     - name: Check out code (into the Go module directory)
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
     - name: Build
       run: ./build.sh
     - name: Test
@@ -32,15 +32,15 @@ jobs:
     needs: build
     steps:
     - name: Set up Go 1.15
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v5
       with:
         go-version: ^1.15
     - name: Check out code (into the Go module directory)
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
     - name: Generate HTML
       run: go run ./cmd/main.go
     - name: Save website artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: website
         path: web
